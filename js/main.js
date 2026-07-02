@@ -199,17 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const contactForm = document.getElementById('contactForm');
   const formStatus = document.getElementById('formStatus');
 
-  contactForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(contactForm));
+  contactForm?.addEventListener('submit', () => {
     formStatus.textContent = 'Sending...';
     formStatus.className = 'form-status';
-
-    setTimeout(() => {
-      formStatus.textContent = '✅ Thank you! We\'ll get back to you within 24 hours.';
-      formStatus.className = 'form-status success';
-      contactForm.reset();
-    }, 1500);
+    // Form will submit to FormSubmit which handles the rest
+    return true;
   });
 
   // === Smooth Scroll for anchor links ===
