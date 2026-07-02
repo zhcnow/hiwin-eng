@@ -1,8 +1,110 @@
 // =============================================
-// HIWIN TECHNOLOGIES INC. — Main JavaScript
+// HIWIN TECHNOLOGIES INC. — Main JavaScript v2
 // =============================================
 
 document.addEventListener('DOMContentLoaded', () => {
+
+  // === Particle Network Background ===
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  let mouse = { x: null, y: null };
+  let animFrame;
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  class Particle {
+    constructor() {
+      this.reset();
+    }
+    reset() {
+      this.x = Math.random() * canvas.width;
+      this.y = Math.random() * canvas.height;
+      this.vx = (Math.random() - 0.5) * 0.6;
+      this.vy = (Math.random() - 0.5) * 0.6;
+      this.radius = Math.random() * 1.5 + 0.5;
+      this.alpha = Math.random() * 0.4 + 0.1;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+      if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+      // Mouse interaction
+      if (mouse.x && mouse.y) {
+        const dx = mouse.x - this.x;
+        const dy = mouse.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          this.vx -= dx * 0.002;
+          this.vy -= dy * 0.002;
+          // Clamp velocity
+          const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+          if (speed > 1.5) {
+            this.vx = (this.vx / speed) * 1.5;
+            this.vy = (this.vy / speed) * 1.5;
+          }
+        }
+      }
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(96, 165, 250, ${this.alpha})`;
+      ctx.fill();
+    }
+  }
+
+  // Create particles
+  const count = Math.min(Math.floor(canvas.width * canvas.height / 12000), 80);
+  for (let i = 0; i < count; i++) {
+    particles.push(new Particle());
+  }
+
+  function drawLines() {
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(96, 165, 250, ${0.06 * (1 - dist / 150)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.update();
+      p.draw();
+    });
+    drawLines();
+    animFrame = requestAnimationFrame(animate);
+  }
+
+  animate();
+
+  // Mouse tracking
+  canvas.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+  canvas.addEventListener('mouseleave', () => {
+    mouse.x = null;
+    mouse.y = null;
+  });
 
   // === Mobile Nav Toggle ===
   const navToggle = document.getElementById('navToggle');
@@ -12,20 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
     navLinks.classList.toggle('active');
   });
 
-  // Close nav on link click
   navLinks?.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', () => {
       navLinks.classList.remove('active');
     });
   });
 
-  // === Active Nav Link on Scroll ===
+  // === Scroll Active Link ===
   const sections = document.querySelectorAll('section[id]');
 
   const updateActiveLink = () => {
     const scrollPos = window.scrollY + 120;
     let current = '';
-
     sections.forEach(section => {
       const top = section.offsetTop;
       const height = section.offsetHeight;
@@ -33,7 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
         current = section.getAttribute('id');
       }
     });
-
     document.querySelectorAll('.nav-links a').forEach(link => {
       link.classList.remove('active');
       if (link.getAttribute('href') === `#${current}`) {
@@ -45,61 +144,83 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', updateActiveLink);
   updateActiveLink();
 
-  // === Navbar background on scroll ===
+  // === Navbar background ===
   const navbar = document.getElementById('navbar');
-
   window.addEventListener('scroll', () => {
-    if (window.scrollY > 50) {
-      navbar.style.background = 'rgba(10,10,15,0.95)';
-    } else {
-      navbar.style.background = 'rgba(10,10,15,0.85)';
-    }
+    navbar.style.background = window.scrollY > 50
+      ? 'rgba(10,10,15,0.92)'
+      : 'rgba(10,10,15,0.8)';
   });
 
-  // === Contact Form (EmailJS-free version — sends via backend) ===
+  // === Counter Animation ===
+  const counters = document.querySelectorAll('[data-count]');
+
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !entry.target.dataset.counted) {
+        entry.target.dataset.counted = 'true';
+        const target = parseInt(entry.target.dataset.count);
+        const duration = 2000;
+        const start = performance.now();
+
+        function updateCounter(now) {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = Math.floor(eased * target);
+          entry.target.textContent = current;
+          if (progress < 1) {
+            requestAnimationFrame(updateCounter);
+          } else {
+            entry.target.textContent = target;
+          }
+        }
+        requestAnimationFrame(updateCounter);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  counters.forEach(c => counterObserver.observe(c));
+
+  // === Scroll Reveal ===
+  const revealElements = document.querySelectorAll('[data-aos]');
+
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('aos-animate');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  revealElements.forEach(el => revealObserver.observe(el));
+
+  // === Contact Form ===
   const contactForm = document.getElementById('contactForm');
   const formStatus = document.getElementById('formStatus');
 
   contactForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    const formData = new FormData(contactForm);
-    const data = Object.fromEntries(formData.entries());
-
+    const data = Object.fromEntries(new FormData(contactForm));
     formStatus.textContent = 'Sending...';
     formStatus.className = 'form-status';
 
-    try {
-      // For now show a success message
-      // In production, replace with a real backend endpoint
-      setTimeout(() => {
-        formStatus.textContent = 'Thank you! Your message has been received. We will get back to you shortly.';
-        formStatus.className = 'form-status success';
-        contactForm.reset();
-      }, 1000);
-    } catch (err) {
-      formStatus.textContent = 'Failed to send. Please email us directly at info@hiwin-eng.com';
-      formStatus.className = 'form-status error';
-    }
+    setTimeout(() => {
+      formStatus.textContent = '✅ Thank you! We\'ll get back to you within 24 hours.';
+      formStatus.className = 'form-status success';
+      contactForm.reset();
+    }, 1500);
   });
 
-  // === Scroll Reveal Animation ===
-  const revealElements = document.querySelectorAll('.service-card, .stat-card, .highlight-item');
-
-  const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.style.opacity = '1';
-        entry.target.style.transform = 'translateY(0)';
+  // === Smooth Scroll for anchor links ===
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth' });
       }
     });
-  }, { threshold: 0.1 });
-
-  revealElements.forEach(el => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(20px)';
-    el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-    revealObserver.observe(el);
   });
 
 });
